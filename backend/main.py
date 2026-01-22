@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from pathlib import Path
 import sqlite3
 import hashlib
 import time
@@ -8,19 +9,23 @@ import requests
 
 app = FastAPI(title="🐧 Stalking Penguin")
 
-# Tell FastAPI where frontend files live
+# Frontend templates + static
 templates = Jinja2Templates(directory="../frontend")
 app.mount("/static", StaticFiles(directory="../frontend"), name="static")
 
+# Always store DB next to this file (prevents path issues on Windows)
+DB_PATH = Path(__file__).resolve().parent / "names.db"
+
 
 def init_db():
-    conn = sqlite3.connect("names.db")
+    conn = sqlite3.connect(DB_PATH)
     conn.execute("""
-        CREATE TABLE IF NOT EXISTS names (
-            fingerprint TEXT PRIMARY KEY,
-            name TEXT,
-            timestamp INTEGER
-        )
+    CREATE TABLE IF NOT EXISTS names (
+        strong_fp TEXT PRIMARY KEY,
+        soft_fp TEXT,
+        name TEXT,
+        timestamp INTEGER
+    )
     """)
     conn.commit()
     conn.close()
@@ -31,13 +36,11 @@ def startup():
     init_db()
 
 
-# TEMP root – simple JSON to confirm server is up
 @app.get("/")
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
-# Return IP + basic header info
 @app.get("/api/fingerprint")
 async def fingerprint(request: Request):
     client_ip = request.client.host
@@ -58,32 +61,64 @@ async def fingerprint(request: Request):
     }
 
 
-# Store name tied to fingerprint hash
 @app.post("/api/store_name")
 async def store_name(
-    fingerprint: str = Form(...),
+    strong_fp: str = Form(...),
+    soft_fp: str = Form(...),
     name: str = Form(...)
 ):
-    fp_hash = hashlib.sha256(fingerprint.encode()).hexdigest()
-    conn = sqlite3.connect("names.db")
+    strong_hash = hashlib.sha256(strong_fp.encode()).hexdigest()
+    soft_hash = hashlib.sha256(soft_fp.encode()).hexdigest()
+
+    conn = sqlite3.connect(DB_PATH)
     conn.execute(
-        "INSERT OR REPLACE INTO names VALUES (?, ?, ?)",
-        (fp_hash, name, int(time.time()))
+        "INSERT OR REPLACE INTO names (strong_fp, soft_fp, name, timestamp) VALUES (?, ?, ?, ?)",
+        (strong_hash, soft_hash, name, int(time.time()))
     )
     conn.commit()
     conn.close()
     return {"status": "stored"}
 
 
-# Lookup name by fingerprint
 @app.get("/api/lookup")
-async def lookup(fingerprint: str):
-    fp_hash = hashlib.sha256(fingerprint.encode()).hexdigest()
-    conn = sqlite3.connect("names.db")
-    cursor = conn.execute(
-        "SELECT name FROM names WHERE fingerprint = ?",
-        (fp_hash,)
-    )
-    result = cursor.fetchone()
+async def lookup(strong_fp: str, soft_fp: str):
+    strong_hash = hashlib.sha256(strong_fp.encode()).hexdigest()
+    soft_hash = hashlib.sha256(soft_fp.encode()).hexdigest()
+
+    conn = sqlite3.connect(DB_PATH)
+
+    # 1) Try strong match
+    cur = conn.execute("SELECT name FROM names WHERE strong_fp = ?", (strong_hash,))
+    row = cur.fetchone()
+    if row:
+        conn.close()
+        return {"name": row[0], "match": "strong"}
+
+    # 2) Fallback: soft match
+    cur = conn.execute("SELECT name FROM names WHERE soft_fp = ?", (soft_hash,))
+    row = cur.fetchone()
     conn.close()
-    return {"name": result[0] if result else None}
+    return {"name": row[0] if row else None, "match": "soft" if row else None}
+
+
+
+@app.get("/api/lookup")
+async def lookup(strong_fp: str, soft_fp: str):
+    strong_hash = hashlib.sha256(strong_fp.encode()).hexdigest()
+    soft_hash = hashlib.sha256(soft_fp.encode()).hexdigest()
+
+    conn = sqlite3.connect(DB_PATH)
+
+    # 1) Try strong match
+    cur = conn.execute("SELECT name FROM names WHERE strong_fp = ?", (strong_hash,))
+    row = cur.fetchone()
+    if row:
+        conn.close()
+        return {"name": row[0], "match": "strong"}
+
+    # 2) Fallback: soft match
+    cur = conn.execute("SELECT name FROM names WHERE soft_fp = ?", (soft_hash,))
+    row = cur.fetchone()
+    conn.close()
+    return {"name": row[0] if row else None, "match": "soft" if row else None}
+

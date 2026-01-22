@@ -1,35 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🐧 Stalking Penguin</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🐧 Stalking Penguin</title>
+
+  <!-- Tailwind Play CDN (fine for demo; warning is normal) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- FingerprintJS (must load before /static/script.js) -->
+  <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"></script>
 </head>
+
 <body class="bg-gradient-to-br from-gray-900 via-black to-gray-900 text-gray-100 min-h-screen p-8 font-mono">
-    <div class="max-w-2xl mx-auto">
-        <div id="welcome-panel" class="bg-gray-800/80 backdrop-blur-sm border border-gray-600 rounded-xl shadow-2xl p-12 mb-8 text-center">
-            <h1 class="text-6xl font-black mb-6 animate-pulse">🐧</h1>
-            <h2 class="text-3xl font-bold mb-4 opacity-90">Stalking Penguin</h2>
-            <p class="text-xl mb-8 opacity-75">What websites know about you <em>instantly</em></p>
-            
-            <div id="name-section" class="space-y-6">
-                <input id="name-input" type="text" placeholder="👤 Enter your name to test incognito..." 
-                       class="w-full p-6 bg-gray-700/50 border-2 border-gray-600 rounded-2xl text-2xl text-center font-bold focus:border-white focus:outline-none transition-all">
-                <button id="save-name" class="w-full bg-gradient-to-r from-gray-600 to-gray-500 hover:from-gray-500 hover:to-gray-400 
-                                             text-xl font-bold py-6 rounded-2xl shadow-2xl hover:shadow-3xl hover:scale-105 transition-all duration-300">
-                    🐧 Save Name & Test Incognito
-                </button>
-                <p class="text-lg opacity-70">Open this page in private/incognito after saving.</p>
-            </div>
+  <div class="max-w-2xl mx-auto">
+
+    <!-- 1) Name-first screen -->
+    <div id="welcome-panel" class="bg-gray-800/80 backdrop-blur-sm border border-gray-600 rounded-xl shadow-2xl p-12 mb-8 text-center">
+      <h1 class="text-6xl font-black mb-6 animate-pulse">🐧</h1>
+      <h2 class="text-3xl font-bold mb-4 opacity-90">Stalking Penguin</h2>
+      <p class="text-xl mb-8 opacity-75">Enter your name first — then see what websites capture.</p>
+
+      <div id="name-section" class="space-y-6">
+        <input id="name-input" type="text"
+          placeholder="👤 Enter your name to test incognito..."
+          class="w-full p-6 bg-gray-700/50 border-2 border-gray-600 rounded-2xl text-2xl text-center font-bold focus:border-white focus:outline-none transition-all" />
+
+        <button id="save-name"
+          class="w-full bg-gradient-to-r from-gray-600 to-gray-500 hover:from-gray-500 hover:to-gray-400
+                 text-xl font-bold py-6 rounded-2xl shadow-2xl hover:scale-105 transition-all duration-300">
+          🐧 Save Name
+        </button>
+
+        <!-- On-page status message (NO POPUPS) -->
+        <div id="status-box"
+          class="hidden mt-2 p-4 rounded-xl border border-gray-600 bg-gray-900/40 text-gray-200 text-lg">
+          Status goes here
         </div>
-        
-        <div id="info-panel" class="hidden">
-            <div id="tracking-info" class="bg-gray-800/80 backdrop-blur-sm border border-gray-600 rounded-xl shadow-2xl p-8 mb-8"></div>
-            <div id="risk-score" class="bg-red-900/40 border-4 border-red-900/60 rounded-2xl p-8 mb-8 shadow-2xl"></div>
-            <div id="mitigations" class="space-y-4"></div>
-        </div>
+
+        <!-- Reset button -->
+        <button id="reset-name"
+          class="hidden w-full bg-black border border-gray-600 hover:border-white text-white py-4 rounded-2xl text-lg font-bold transition-all">
+          🗑️ Remove my name (Reset)
+        </button>
+
+        <p class="text-sm opacity-70">After saving, open a private/incognito window and visit the same URL.</p>
+      </div>
     </div>
-    <script src="script.js"></script>
+
+    <!-- 2) Capture screen (shown after Save OR for returning user) -->
+    <div id="info-panel" class="hidden">
+      <div id="tracking-info" class="bg-gray-800/80 backdrop-blur-sm border border-gray-600 rounded-xl shadow-2xl p-8 mb-8"></div>
+      <div id="risk-score" class="bg-red-900/40 border-4 border-red-900/60 rounded-2xl p-8 mb-8 shadow-2xl"></div>
+      <div id="mitigations" class="space-y-4"></div>
+    </div>
+
+    <!-- Small debug status (optional) -->
+    <div id="status" class="text-center text-sm opacity-50"></div>
+  </div>
+
+  <!-- Your JS (cache-busted) -->
+  <script src="/static/script.js?v=12"></script>
 </body>
 </html>
