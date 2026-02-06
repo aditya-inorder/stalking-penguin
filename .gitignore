@@ -4,3 +4,11 @@
 venv/
 __pycache__/
 *.db
+# Fonts and images
+frontend/static/font/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico
