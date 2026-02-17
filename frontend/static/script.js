@@ -1,62 +1,82 @@
 let STRONG_FP = null;
 let SOFT_FP = null;
+let currentScreen = 'initial';
+let savedName = '';
+let isIncognitoMode = false;
 
 document.addEventListener("DOMContentLoaded", () => {
   boot();
 });
 
 async function boot() {
+  // Detect incognito mode
+  isIncognitoMode = !localStorage.getItem("sp_normal_mode");
+
   if (typeof FingerprintJS === "undefined") {
-    setStatusBox("FingerprintJS failed to load. Check script order.", true);
+    showStatusBox("FingerprintJS failed to load. Check script order.", true);
     return;
   }
 
-  // Fingerprints
+  // Generate fingerprints
   try {
     const agent = await FingerprintJS.load();
     const res = await agent.get();
     STRONG_FP = res.visitorId;
     SOFT_FP = buildSoftId();
-    setDebugStatus(`strong: ${STRONG_FP.slice(0, 8)}... | soft: ${hashLite(SOFT_FP).slice(0, 8)}...`);
   } catch (e) {
     console.error(e);
-    setStatusBox("Fingerprint generation failed.", true);
+    showStatusBox("Fingerprint generation failed.", true);
     return;
   }
 
+  // Wire up all buttons and navigation
   wireSaveButton();
-  wireForgetButton();
+  wireForgetButtons();
+  wireNavigationLinks();
 
-  // If user already saved in NORMAL mode, show thank-you (never recognized here)
-  const savedNormal = localStorage.getItem("sp_saved") === "1";
-  const savedName = localStorage.getItem("sp_saved_name") || "";
+  // ALWAYS check backend first with retry logic
+  let retryCount = 0;
+  let lookup = null;
 
-  if (savedNormal && savedName) {
-    showThankYouUI(savedName);
-    showForgetButton();
-    return;
+  while (retryCount < 3 && !lookup) {
+    try {
+      lookup = await apiLookup(STRONG_FP, SOFT_FP);
+      if (lookup && lookup.name) {
+        // Found in backend - show recognized screen
+        savedName = lookup.name;
+        await showRecognizedScreen(lookup.name, isIncognitoMode);
+        return;
+      }
+      break; // No match found, exit loop
+    } catch (e) {
+      console.error(`Lookup attempt ${retryCount + 1} failed:`, e);
+      retryCount++;
+      if (retryCount < 3) {
+        await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms before retry
+      }
+    }
   }
 
-  // Otherwise try lookup → recognized (incognito/private only)
-  try {
-    const lookup = await apiLookup(STRONG_FP, SOFT_FP);
-    if (lookup && lookup.name) {
-      await showRecognizedCapture(lookup.name, lookup.match);
-      showForgetButton();
+  // No backend match - check localStorage for normal mode
+  if (!isIncognitoMode) {
+    localStorage.setItem("sp_normal_mode", "1");
+
+    const savedNormal = localStorage.getItem("sp_saved") === "1";
+    const savedNameLocal = localStorage.getItem("sp_saved_name") || "";
+
+    if (savedNormal && savedNameLocal) {
+      savedName = savedNameLocal;
+      document.getElementById('thankyou-name').textContent = savedName;
+      showScreen('thankyou');
       return;
     }
-  } catch (e) {
-    console.error("lookup failed", e);
   }
 
-  // Fresh user → show name entry
-  showNameEntryUI();
-  hideForgetButton();
-  setStatusBox("Type your name, hit “Remember me!”, then open this site in Incognito/Private mode.", false);
+  // Fresh user - show initial screen
+  showScreen('initial');
 }
 
 /* ---------- Soft fingerprint ---------- */
-
 function buildSoftId() {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
   const lang = navigator.language || "";
@@ -66,321 +86,302 @@ function buildSoftId() {
   return `${ua}|${plat}|${lang}|${tz}|${scr}`;
 }
 
-function hashLite(str) {
-  let h = 2166136261;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 16777619);
+/* ---------- Screen Management ---------- */
+function showScreen(screenName) {
+  const screens = ['initial', 'thankyou', 'recognized', 'how-works', 'protect'];
+  screens.forEach(s => {
+    const el = document.getElementById(`screen-${s}`);
+    if (el) {
+      if (s === screenName) {
+        el.classList.remove('hidden');
+        el.classList.add('fade-in');
+      } else {
+        el.classList.add('hidden');
+        el.classList.remove('fade-in', 'slide-left', 'slide-right');
+      }
+    }
+  });
+  currentScreen = screenName;
+
+  const leftSection = document.getElementById('left-section');
+  if (leftSection) leftSection.scrollTop = 0;
+}
+
+function showScreenWithLoader(screenName, loaderDuration = 2000) {
+  const loader = document.getElementById('loader-overlay');
+  if (loader) {
+    loader.classList.add('show');
+    setTimeout(() => {
+      loader.classList.remove('show');
+      showScreen(screenName);
+    }, loaderDuration);
+  } else {
+    showScreen(screenName);
   }
-  return (h >>> 0).toString(16);
 }
 
-/* ---------- UI states ---------- */
-
-function showNameEntryUI() {
-  document.body.className = "bg-white text-gray-900 min-h-screen font-sans";
-
-  const nameEntry = document.getElementById("name-entry");
-  const infoPanel = document.getElementById("info-panel");
-  if (nameEntry) nameEntry.classList.remove("hidden");
-  if (infoPanel) infoPanel.classList.add("hidden");
-
-  const hero = document.getElementById("hero-text");
-  if (hero) {
-    hero.innerHTML = `
-      <h1 class="text-3xl md:text-4xl font-bold mb-4">
-        Can you hide from the <span class="font-black">Penguin</span>?
-      </h1>
-      <p class="text-base md:text-lg mb-2">
-        Think switching to your browser’s <span class="font-semibold">private</span> or <span class="font-semibold">incognito</span>
-        mode makes you invisible?
-      </p>
-      <p class="text-base md:text-lg mb-6">
-        <span class="font-semibold">Bad news:</span> the web can still recognize you from your device and browser details.
-        <span class="font-semibold">Test it</span> by typing your name below.
-      </p>
-    `;
-  }
-
-  const input = document.getElementById("name-input");
-  if (input) input.value = "";
-
-  clearInfoBlocks();
-}
-
-function showThankYouUI(name) {
-  document.body.className = "bg-white text-gray-900 min-h-screen font-sans";
-
-  // Hide name entry completely
-  const nameEntry = document.getElementById("name-entry");
-  const infoPanel = document.getElementById("info-panel");
-  if (nameEntry) nameEntry.classList.add("hidden");
-  if (infoPanel) infoPanel.classList.add("hidden");
-
-  const hero = document.getElementById("hero-text");
-  if (hero) {
-    hero.innerHTML = `
-      <h1 class="text-3xl md:text-4xl font-bold mb-4">
-        Thank you, <span class="font-black">${escapeHtml(name)}</span>.
-      </h1>
-      <p class="text-base md:text-lg mb-2">
-        The penguin has remembered you. Now try to hide in <span class="font-semibold">Private / Incognito</span>.
-      </p>
-      <p class="text-base md:text-lg mb-4">
-        Open an Incognito/Private window and visit this site again to see if it still finds you.
-      </p>
-    `;
-  }
-
-  setStatusBox(`Saved “${name}”. Now open an Incognito/Private window and visit this site again.`, false);
-  clearInfoBlocks();
-}
-
-function clearInfoBlocks() {
-  const trackingInfo = document.getElementById("tracking-info");
-  const riskScoreEl = document.getElementById("risk-score");
-  const mitigationsEl = document.getElementById("mitigations");
-  if (trackingInfo) trackingInfo.innerHTML = "";
-  if (riskScoreEl) riskScoreEl.innerHTML = "";
-  if (mitigationsEl) mitigationsEl.innerHTML = "";
-}
-
-/* ---------- Buttons ---------- */
-
+/* ---------- Save Button ---------- */
 function wireSaveButton() {
   const btn = document.getElementById("save-name");
   const input = document.getElementById("name-input");
+
   if (!btn || !input) return;
 
   btn.onclick = async () => {
     const name = (input.value || "").trim();
 
     if (!name || name.length < 2) {
-      setStatusBox("Enter a valid name (at least 2 characters).", true);
+      showStatusBox("Enter a valid name (at least 2 characters).", true);
       return;
     }
+
     if (!STRONG_FP || !SOFT_FP) {
-      setStatusBox("Fingerprint not ready yet. Refresh once.", true);
+      showStatusBox("Fingerprint not ready yet. Refresh once.", true);
       return;
     }
 
     const ok = await apiStoreName(STRONG_FP, SOFT_FP, name);
     if (!ok) {
-      setStatusBox("Saving failed. Check backend.", true);
+      showStatusBox("Saving failed. Check backend.", true);
       return;
     }
 
-    // Mark NORMAL mode as saved
-    localStorage.setItem("sp_saved", "1");
-    localStorage.setItem("sp_saved_name", name);
+    // Only mark as saved in NORMAL mode
+    if (!isIncognitoMode) {
+      localStorage.setItem("sp_saved", "1");
+      localStorage.setItem("sp_saved_name", name);
+    }
 
-    // Hide name entry completely, show thank-you
-    showThankYouUI(name);
-    showForgetButton();
+    savedName = name;
+
+    document.getElementById('thankyou-name').textContent = name;
+    showScreen('thankyou');
   };
 }
 
-function wireForgetButton() {
-  const forgetBtn = document.getElementById("reset-name");
-  if (!forgetBtn) return;
+/* ---------- Forget Buttons ---------- */
+function wireForgetButtons() {
+  const forgetBtns = [
+    'forget-btn-thankyou',
+    'forget-btn-recognized',
+    'forget-btn-how-works',
+    'forget-btn-protect'
+  ];
 
-  forgetBtn.onclick = async () => {
-    if (!STRONG_FP || !SOFT_FP) {
-      setStatusBox("Fingerprint not ready; cannot forget.", true);
-      return;
+  forgetBtns.forEach(btnId => {
+    const btn = document.getElementById(btnId);
+    if (btn) {
+      btn.onclick = async () => {
+        if (!STRONG_FP || !SOFT_FP) {
+          showStatusBox("Fingerprint not ready; cannot forget.", true);
+          return;
+        }
+
+        const ok = await apiDeleteName(STRONG_FP, SOFT_FP);
+        if (!ok) {
+          showStatusBox("Forget failed.", true);
+          return;
+        }
+
+        localStorage.removeItem("sp_saved");
+        localStorage.removeItem("sp_saved_name");
+        localStorage.removeItem("sp_normal_mode");
+        savedName = '';
+
+        const input = document.getElementById("name-input");
+        if (input) input.value = "";
+
+        window.location.reload();
+      };
     }
-
-    const ok = await apiDeleteName(STRONG_FP, SOFT_FP);
-    if (!ok) {
-      setStatusBox("Forget failed.", true);
-      return;
-    }
-
-    localStorage.removeItem("sp_saved");
-    localStorage.removeItem("sp_saved_name");
-
-    hideForgetButton();
-    showNameEntryUI();
-    setStatusBox("Forgot you. Enter a new name to try again.", false);
-  };
+  });
 }
 
-function showForgetButton() {
-  const b = document.getElementById("reset-name");
-  if (b) b.classList.remove("hidden");
-}
-
-function hideForgetButton() {
-  const b = document.getElementById("reset-name");
-  if (b) b.classList.add("hidden");
-}
-
-/* ---------- Recognized (incognito/private) ---------- */
-
-async function showRecognizedCapture(name, matchType) {
-  document.body.className = "bg-white text-gray-900 min-h-screen font-sans";
-
-  const nameEntry = document.getElementById("name-entry");
-  const infoPanel = document.getElementById("info-panel");
-  if (nameEntry) nameEntry.classList.add("hidden");
-  if (infoPanel) infoPanel.classList.remove("hidden");
-
-  const hero = document.getElementById("hero-text");
-  if (hero) {
-    hero.innerHTML = `
-      <h1 class="text-3xl md:text-4xl font-bold mb-4">
-        I found you. You are <span class="font-black text-red-600">${escapeHtml(name)}!</span>
-      </h1>
-      <p class="text-base md:text-lg mb-2">
-        Private mode didn’t stop identification based on device/browser traits.
-      </p>
-      <p class="text-base md:text-lg mb-4">
-        Here is what was captured instantly.
-      </p>
-    `;
+/* ---------- Navigation Links ---------- */
+function wireNavigationLinks() {
+  const howWorksLink = document.getElementById('how-works-link');
+  if (howWorksLink) {
+    howWorksLink.onclick = () => {
+      showScreenWithLoader('how-works', 2000);
+    };
   }
+
+  const protectLink = document.getElementById('protect-link');
+  if (protectLink) {
+    protectLink.onclick = () => {
+      const howWorksScreen = document.getElementById('screen-how-works');
+      const protectScreen = document.getElementById('screen-protect');
+
+      if (howWorksScreen) howWorksScreen.classList.add('hidden');
+      if (protectScreen) {
+        protectScreen.classList.remove('hidden');
+        protectScreen.classList.add('slide-right');
+      }
+      currentScreen = 'protect';
+    };
+  }
+
+  const backToWorks = document.getElementById('back-to-works');
+  if (backToWorks) {
+    backToWorks.onclick = () => {
+      const protectScreen = document.getElementById('screen-protect');
+      const howWorksScreen = document.getElementById('screen-how-works');
+
+      if (protectScreen) protectScreen.classList.add('hidden');
+      if (howWorksScreen) {
+        howWorksScreen.classList.remove('hidden');
+        howWorksScreen.classList.add('slide-left');
+      }
+      currentScreen = 'how-works';
+    };
+  }
+}
+
+/* ---------- Recognized Screen ---------- */
+async function showRecognizedScreen(name, fromIncognito) {
+  const loader = document.getElementById('loader-overlay');
+  if (loader) loader.classList.add('show');
 
   let serverData = null;
-  try {
-    serverData = await fetch("/api/fingerprint").then((r) => r.json());
-  } catch (e) {
-    console.error(e);
-    setStatusBox("Failed to load tracking info from server.", true);
-    return;
+  const startTime = Date.now();
+
+  // Fetch with retry logic
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch("/api/fingerprint", { 
+        signal: controller.signal,
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        serverData = await response.json();
+        break;
+      }
+    } catch (e) {
+      console.error(`Fingerprint API attempt ${attempt + 1} error:`, e);
+      if (attempt === 0) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
   }
 
-  const ip = serverData.ip || "Unknown";
-  const location = serverData.location || "Unknown";
-  const isp = serverData.isp || "Unknown";
-  const platform = (serverData.platform || "Unknown").replaceAll('"', "");
-
-  const trackingInfo = document.getElementById("tracking-info");
-  if (trackingInfo) {
-    trackingInfo.innerHTML = `
-      <div class="w-full bg-white rounded-2xl border border-gray-200 shadow-sm px-6 py-6">
-        <h2 class="text-xl md:text-2xl font-bold mb-4">
-          What we captured (match: ${escapeHtml(matchType || "soft")})
-        </h2>
-
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-          <div class="p-4 rounded-xl border border-gray-200 bg-gray-50 text-center">
-            <div class="text-xl font-mono font-semibold break-words">${escapeHtml(ip)}</div>
-            <div class="text-xs mt-1 uppercase tracking-wide text-gray-500">IP</div>
-          </div>
-
-          <div class="p-4 rounded-xl border border-gray-200 bg-gray-50 text-center">
-            <div class="text-base font-semibold break-words">${escapeHtml(location)}</div>
-            <div class="text-xs mt-1 uppercase tracking-wide text-gray-500">Place</div>
-          </div>
-
-          <div class="p-4 rounded-xl border border-gray-200 bg-gray-50 text-center">
-            <div class="text-xs font-mono break-words">${escapeHtml(isp)}</div>
-            <div class="text-xs mt-1 uppercase tracking-wide text-gray-500">ISP/Org</div>
-          </div>
-
-          <div class="p-4 rounded-xl border border-gray-200 bg-gray-50 text-center">
-            <div class="text-sm break-words">${escapeHtml(platform)}</div>
-            <div class="text-xs mt-1 uppercase tracking-wide text-gray-500">Platform</div>
-          </div>
-        </div>
-
-        <div class="mt-3 text-xs text-gray-500 space-y-1">
-          <div><span class="font-semibold">Strong FP:</span> ${escapeHtml(STRONG_FP.slice(0, 24))}...</div>
-          <div><span class="font-semibold">Soft FP:</span> ${escapeHtml(hashLite(SOFT_FP))}</div>
-        </div>
-      </div>
-    `;
+  // Fallback if API failed
+  if (!serverData) {
+    serverData = {
+      ip: "Unknown",
+      location: "Unknown",
+      isp: "Unknown",
+      platform: "Unknown"
+    };
   }
 
-  const riskScoreEl = document.getElementById("risk-score");
-  if (riskScoreEl) {
-    riskScoreEl.innerHTML = `
-      <div class="text-sm text-gray-700">
-        <p class="mb-1 font-semibold">Why this worked:</p>
-        <ul class="list-disc list-inside space-y-1">
-          <li>We stored your name against a fingerprint in a normal window.</li>
-          <li>This window matched the fingerprint (strong or soft fallback).</li>
-          <li>Incognito mode doesn’t erase device/browser traits.</li>
-        </ul>
-      </div>
-    `;
+  // Wait for minimum 2 seconds
+  const elapsed = Date.now() - startTime;
+  if (elapsed < 2000) {
+    await new Promise(resolve => setTimeout(resolve, 2000 - elapsed));
   }
 
-  const mitigationsEl = document.getElementById("mitigations");
-  if (mitigationsEl) {
-    mitigationsEl.innerHTML = `
-      <div class="text-sm text-gray-700">
-        <p class="mb-1 font-semibold">Mitigations:</p>
-        <ul class="list-disc list-inside space-y-1">
-          <li>Use a VPN to hide IP/location.</li>
-          <li>Block trackers (uBlock Origin).</li>
-          <li>Use browsers with anti-fingerprinting protections.</li>
-        </ul>
-      </div>
-    `;
+  if (loader) loader.classList.remove('show');
+
+  // Update heading
+  const heading = document.getElementById('recognized-heading');
+
+  if (heading) {
+    if (fromIncognito) {
+      heading.innerHTML = 'Welcome back, <span class="orange-name">' + name + '!</span>';
+    } else {
+      heading.innerHTML = 'Penguin still caught you, <span class="orange-name">' + name + '!</span>';
+    }
   }
 
-  setStatusBox("", false);
+  // Update info fields
+  document.getElementById('info-ip').textContent = serverData.ip || "Unknown";
+  document.getElementById('info-place').textContent = serverData.location || "Unknown";
+  document.getElementById('info-isp').textContent = serverData.isp || "Unknown";
+  document.getElementById('info-platform').textContent = (serverData.platform || "Unknown").replaceAll('"', '');
+
+  showScreen('recognized');
 }
 
-/* ---------- API ---------- */
-
-async function apiStoreName(strong_fp, soft_fp, name) {
-  const formData = new FormData();
-  formData.append("strong_fp", strong_fp);
-  formData.append("soft_fp", soft_fp);
-  formData.append("name", name);
-  const res = await fetch("/api/store_name", { method: "POST", body: formData });
-  return res.ok;
-}
-
-async function apiLookup(strong_fp, soft_fp) {
-  const url = `/api/lookup?strong_fp=${encodeURIComponent(strong_fp)}&soft_fp=${encodeURIComponent(soft_fp)}`;
-  const res = await fetch(url);
-  if (!res.ok) return null;
-  return res.json();
-}
-
-async function apiDeleteName(strong_fp, soft_fp) {
-  const formData = new FormData();
-  formData.append("strong_fp", strong_fp);
-  formData.append("soft_fp", soft_fp);
-  const res = await fetch("/api/delete_name", { method: "POST", body: formData });
-  return res.ok;
-}
-
-/* ---------- Status helpers ---------- */
-
-function setStatusBox(text, isError) {
+/* ---------- Status Box ---------- */
+function showStatusBox(message, isError) {
   const box = document.getElementById("status-box");
   if (!box) return;
 
-  if (!text) {
-    box.classList.add("hidden");
-    box.textContent = "";
-    return;
-  }
-
-  box.classList.remove("hidden");
-  box.textContent = text;
+  box.textContent = message;
+  box.className = "status-box show";
 
   if (isError) {
-    box.className = "max-w-md mx-auto p-3 rounded-xl border border-red-500 bg-red-50 text-red-800 text-base";
+    box.classList.add("error");
   } else {
-    box.className = "max-w-md mx-auto p-3 rounded-xl border border-blue-500 bg-blue-50 text-blue-800 text-base";
+    box.classList.add("success");
+  }
+
+  setTimeout(() => {
+    box.classList.remove("show");
+  }, 5000);
+}
+
+/* ---------- API Calls ---------- */
+async function apiStoreName(strongFp, softFp, name) {
+  try {
+    const formData = new FormData();
+    formData.append("strong_fp", strongFp);
+    formData.append("soft_fp", softFp);
+    formData.append("name", name);
+
+    const res = await fetch("/api/store_name", {
+      method: "POST",
+      body: formData
+    });
+
+    return res.ok;
+  } catch (e) {
+    console.error(e);
+    return false;
   }
 }
 
-function setDebugStatus(text) {
-  const el = document.getElementById("status");
-  if (el) el.textContent = text;
+async function apiDeleteName(strongFp, softFp) {
+  try {
+    const formData = new FormData();
+    formData.append("strong_fp", strongFp);
+    formData.append("soft_fp", softFp);
+
+    const res = await fetch("/api/delete_name", {
+      method: "POST",
+      body: formData
+    });
+
+    return res.ok;
+  } catch (e) {
+    console.error(e);
+    return false;
+  }
 }
 
-function escapeHtml(str) {
-  return String(str)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+async function apiLookup(strongFp, softFp) {
+  try {
+    const url = `/api/lookup?strong_fp=${encodeURIComponent(strongFp)}&soft_fp=${encodeURIComponent(softFp)}`;
+    const res = await fetch(url, {
+      headers: {
+        'Cache-Control': 'no-cache'
+      }
+    });
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    return data.name ? data : null;
+  } catch (e) {
+    console.error(e);
+    throw e; // Re-throw for retry logic
+  }
 }

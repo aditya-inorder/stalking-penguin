@@ -1,3 +1,4 @@
+# Python version: 3.11 was used
 fastapi
 uvicorn[standard]
 requests

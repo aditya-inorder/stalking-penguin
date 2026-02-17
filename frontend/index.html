@@ -4,85 +4,1109 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stalking Penguin</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
   <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"></script>
   <style>
-    @keyframes bob {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-8px); }
+    /* Font Face Declarations */
+    @font-face {
+      font-family: 'Glacial Indifference';
+      src: url('/static/font/GlacialIndifference-Regular.otf') format('opentype');
+      font-weight: normal;
+      font-style: normal;
     }
-    .animate-bob {
-      animation: bob 2s ease-in-out infinite;
+
+    @font-face {
+      font-family: 'Glacial Indifference';
+      src: url('/static/font/GlacialIndifference-Bold.otf') format('opentype');
+      font-weight: bold;
+      font-style: normal;
+    }
+
+    @font-face {
+      font-family: 'Cooper Hewitt';
+      src: url('/static/font/CooperHewitt-Book.otf') format('opentype');
+      font-weight: normal;
+      font-style: normal;
+    }
+
+    @font-face {
+      font-family: 'Cooper Hewitt';
+      src: url('/static/font/CooperHewitt-Bold.otf') format('opentype');
+      font-weight: bold;
+      font-style: normal;
+    }
+
+    @font-face {
+      font-family: 'Canva Sans';
+      src: url('/static/font/canva-sans-regular.otf') format('opentype');
+      font-weight: normal;
+      font-style: normal;
+    }
+
+    @font-face {
+      font-family: 'Canva Sans';
+      src: url('/static/font/canva-sans-bold.otf') format('opentype');
+      font-weight: bold;
+      font-style: normal;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Cooper Hewitt', sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      position: relative;
+    }
+
+    /* Navbar - Fixed and Non-draggable */
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 70px;
+      background-color: #000000;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 40px;
+      z-index: 1000;
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+    }
+
+    .navbar-left {
+      height: 55px;
+    }
+
+    .navbar-left img {
+      height: 100%;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .navbar-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .navbar-right img {
+      height: 40px;
+      width: auto;
+      object-fit: contain;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .navbar-right img:hover {
+      transform: scale(1.05);
+    }
+
+    /* Main Container */
+    .main-container {
+      display: flex;
+      height: 100vh;
+      padding-top: 70px;
+      position: relative;
+    }
+
+    /* Left Section - 55% */
+    .left-section {
+      width: 55%;
+      background-color: #ffffff;
+      padding: 70px 80px 80px 80px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      overflow-y: auto;
+      overflow-x: hidden;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Hide scrollbar but keep functionality */
+    .left-section::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .left-section::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .left-section::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.1);
+      border-radius: 2px;
+    }
+
+    .left-section::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    /* For Firefox */
+    .left-section {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+    }
+
+    /* Right Section - 45% with Gradient */
+    .right-section {
+      width: 45%;
+      background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
+      position: relative;
+      overflow: hidden;
+      z-index: 0;
+    }
+
+    /* Penguin Image - OVERLAPPING LEFT SECTION */
+    .penguin-image {
+      position: fixed;
+      width: 950px;
+      height: auto;
+      top: 70%;
+      left: 72%;
+      transform: translate(-50%, -50%) rotate(0deg);
+      animation: penguin-hover 3s ease-in-out infinite;
+      pointer-events: none;
+      user-select: none;
+      z-index: 500;
+    }
+
+    @keyframes penguin-hover {
+      0%, 100% {
+        transform: translate(-50%, -50%) translateY(0px) rotate(0deg);
+      }
+      50% {
+        transform: translate(-50%, -50%) translateY(-10px) rotate(0deg);
+      }
+    }
+
+    /* Content Wrapper */
+    .content-wrapper {
+      max-width: 600px;
+      width: 100%;
+      position: relative;
+      z-index: 10;
+    }
+
+    .main-heading {
+      font-family: 'Glacial Indifference', sans-serif;
+      font-size: 56px;
+      font-weight: normal;
+      color: #000000;
+      margin-bottom: 25px;
+      text-align: left;
+      line-height: 1.2;
+    }
+
+    .main-heading .bold-penguin {
+      font-weight: bold;
+    }
+
+    .main-heading .blue-name {
+      font-weight: bold;
+      color: #006eff;
+    }
+
+    .main-heading .orange-name {
+      font-weight: bold;
+      color: #ffa100;
+    }
+
+    .sub-text {
+      font-family: 'Cooper Hewitt', sans-serif;
+      font-size: 20px;
+      color: #757575;
+      margin-bottom: 40px;
+      text-align: left;
+      line-height: 1.7;
+    }
+
+    .sub-text .bold-part {
+      font-weight: bold;
+    }
+
+    /* Input Container */
+    .input-container {
+      position: relative;
+      margin: 30px 0;
+      width: 350px;
+    }
+
+    .input-container input[type="text"] {
+      font-size: 22px;
+      width: 100%;
+      border: none;
+      border-bottom: 2px solid #ccc;
+      padding: 8px 0;
+      background-color: transparent;
+      outline: none;
+      font-family: 'Cooper Hewitt', sans-serif;
+    }
+
+    .input-container .label {
+      position: absolute;
+      top: 0;
+      left: 0;
+      color: #ccc;
+      font-size: 20px;
+      transition: all 0.3s ease;
+      pointer-events: none;
+      font-family: 'Cooper Hewitt', sans-serif;
+    }
+
+    .input-container input[type="text"]:focus ~ .label,
+    .input-container input[type="text"]:valid ~ .label {
+      top: -22px;
+      font-size: 16px;
+      color: #333;
+    }
+
+    .input-container .underline {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 2px;
+      width: 100%;
+      background-color: #333;
+      transform: scaleX(0);
+      transition: all 0.3s ease;
+    }
+
+    .input-container input[type="text"]:focus ~ .underline,
+    .input-container input[type="text"]:valid ~ .underline {
+      transform: scaleX(1);
+    }
+
+    /* Remember Me Button */
+    .remember-button {
+      --button_radius: 0.75em;
+      --button_color: #ffffff;
+      --button_outline_color: #000000;
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+      border-radius: var(--button_radius);
+      background: var(--button_outline_color);
+      font-family: 'Cooper Hewitt', sans-serif;
+      margin-top: 25px;
+    }
+
+    .button_top {
+      display: block;
+      box-sizing: border-box;
+      border: 2px solid var(--button_outline_color);
+      border-radius: var(--button_radius);
+      padding: 0.70em 1.8em;
+      background: var(--button_color);
+      color: var(--button_outline_color);
+      transform: translateY(-0.2em);
+      transition: transform 0.1s ease;
+    }
+
+    .remember-button:hover .button_top {
+      transform: translateY(-0.33em);
+    }
+
+    .remember-button:active .button_top {
+      transform: translateY(0);
+    }
+
+    /* Forget Me Button */
+    .forget-button {
+      appearance: button;
+      background-color: #000000;
+      border: solid transparent;
+      border-radius: 8px;
+      border-width: 0 0 4px;
+      box-sizing: border-box;
+      color: #FFFFFF;
+      cursor: pointer;
+      display: inline-block;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: .8px;
+      line-height: 20px;
+      margin: 0;
+      margin-top: 18px;
+      outline: none;
+      overflow: visible;
+      padding: 13px 19px;
+      text-align: center;
+      text-transform: uppercase;
+      touch-action: manipulation;
+      transform: translateZ(0);
+      transition: filter .2s;
+      user-select: none;
+      -webkit-user-select: none;
+      vertical-align: middle;
+      white-space: nowrap;
+      position: relative;
+    }
+
+    .forget-button:after {
+      background-clip: padding-box;
+      background-color: #000000;
+      border: solid transparent;
+      border-radius: 16px;
+      border-width: 0 0 4px;
+      bottom: -4px;
+      content: "";
+      left: 0;
+      position: absolute;
+      right: 0;
+      top: 0;
+      z-index: -1;
+    }
+
+    .forget-button:hover:not(:disabled) {
+      filter: brightness(1.1);
+    }
+
+    .forget-button:disabled {
+      cursor: auto;
+    }
+
+    .forget-button:active:after {
+      border-width: 0 0 0px;
+    }
+
+    .forget-button:active {
+      padding-bottom: 10px;
+    }
+
+    #forget-btn-thankyou {
+      margin-top: -20px;
+    }
+
+
+    /* Footer - Fixed and Non-draggable */
+    .footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 50px;
+      background-color: #000000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      border-top: 1px solid #333333;
+    }
+
+    .footer-text {
+      font-family: 'Canva Sans', sans-serif;
+      font-size: 14px;
+      color: #ffffff;
+    }
+
+    .footer-text .creator-name {
+      font-style: italic;
+    }
+
+    /* Status Box for Messages */
+    .status-box {
+      margin-top: 25px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-family: 'Cooper Hewitt', sans-serif;
+      font-size: 15px;
+      text-align: left;
+      display: none;
+      width: fit-content;
+      max-width: 100%;
+    }
+
+    .status-box.show {
+      display: block;
+    }
+
+    .status-box.error {
+      background-color: #fee;
+      border: 1px solid #fcc;
+      color: #c33;
+    }
+
+    .status-box.success {
+      background-color: #efe;
+      border: 1px solid #cfc;
+      color: #3c3;
+    }
+
+    /* Loader Overlay */
+    .loader-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #ffffff;
+      z-index: 9999;
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .loader-overlay.show {
+      display: flex;
+    }
+
+    /* Loader Styles */
+    .loader {
+      position: absolute;
+      top: 50%;
+      margin-left: -50px;
+      left: 50%;
+      animation: speeder 0.4s linear infinite;
+    }
+
+    .loader > span {
+      height: 5px;
+      width: 35px;
+      background: #000;
+      position: absolute;
+      top: -19px;
+      left: 60px;
+      border-radius: 2px 10px 1px 0;
+    }
+
+    .base span {
+      position: absolute;
+      width: 0;
+      height: 0;
+      border-top: 6px solid transparent;
+      border-right: 100px solid #000;
+      border-bottom: 6px solid transparent;
+    }
+
+    .base span:before {
+      content: "";
+      height: 22px;
+      width: 22px;
+      border-radius: 50%;
+      background: #000;
+      position: absolute;
+      right: -110px;
+      top: -16px;
+    }
+
+    .base span:after {
+      content: "";
+      position: absolute;
+      width: 0;
+      height: 0;
+      border-top: 0 solid transparent;
+      border-right: 55px solid #000;
+      border-bottom: 16px solid transparent;
+      top: -16px;
+      right: -98px;
+    }
+
+    .face {
+      position: absolute;
+      height: 12px;
+      width: 20px;
+      background: #000;
+      border-radius: 20px 20px 0 0;
+      transform: rotate(-40deg);
+      right: -125px;
+      top: -15px;
+    }
+
+    .face:after {
+      content: "";
+      height: 12px;
+      width: 12px;
+      background: #000;
+      right: 4px;
+      top: 7px;
+      position: absolute;
+      transform: rotate(40deg);
+      transform-origin: 50% 50%;
+      border-radius: 0 0 0 2px;
+    }
+
+    .loader > span > span:nth-child(1),
+    .loader > span > span:nth-child(2),
+    .loader > span > span:nth-child(3),
+    .loader > span > span:nth-child(4) {
+      width: 30px;
+      height: 1px;
+      background: #000;
+      position: absolute;
+      animation: fazer1 0.2s linear infinite;
+    }
+
+    .loader > span > span:nth-child(2) {
+      top: 3px;
+      animation: fazer2 0.4s linear infinite;
+    }
+
+    .loader > span > span:nth-child(3) {
+      top: 1px;
+      animation: fazer3 0.4s linear infinite;
+      animation-delay: -1s;
+    }
+
+    .loader > span > span:nth-child(4) {
+      top: 4px;
+      animation: fazer4 1s linear infinite;
+      animation-delay: -1s;
+    }
+
+    @keyframes fazer1 {
+      0% { left: 0; }
+      100% { left: -80px; opacity: 0; }
+    }
+
+    @keyframes fazer2 {
+      0% { left: 0; }
+      100% { left: -100px; opacity: 0; }
+    }
+
+    @keyframes fazer3 {
+      0% { left: 0; }
+      100% { left: -50px; opacity: 0; }
+    }
+
+    @keyframes fazer4 {
+      0% { left: 0; }
+      100% { left: -150px; opacity: 0; }
+    }
+
+    @keyframes speeder {
+      0% { transform: translate(2px, 1px) rotate(0deg); }
+      10% { transform: translate(-1px, -3px) rotate(-1deg); }
+      20% { transform: translate(-2px, 0px) rotate(1deg); }
+      30% { transform: translate(1px, 2px) rotate(0deg); }
+      40% { transform: translate(1px, -1px) rotate(1deg); }
+      50% { transform: translate(-1px, 3px) rotate(-1deg); }
+      60% { transform: translate(-1px, 1px) rotate(0deg); }
+      70% { transform: translate(3px, 1px) rotate(-1deg); }
+      80% { transform: translate(-2px, -1px) rotate(1deg); }
+      90% { transform: translate(2px, 1px) rotate(0deg); }
+      100% { transform: translate(1px, -2px) rotate(-1deg); }
+    }
+
+    .longfazers {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+    }
+
+    .longfazers span {
+      position: absolute;
+      height: 2px;
+      width: 20%;
+      background: #000;
+    }
+
+    .longfazers span:nth-child(1) {
+      top: 20%;
+      animation: lf 0.6s linear infinite;
+      animation-delay: -5s;
+    }
+
+    .longfazers span:nth-child(2) {
+      top: 40%;
+      animation: lf2 0.8s linear infinite;
+      animation-delay: -1s;
+    }
+
+    .longfazers span:nth-child(3) {
+      top: 60%;
+      animation: lf3 0.6s linear infinite;
+    }
+
+    .longfazers span:nth-child(4) {
+      top: 80%;
+      animation: lf4 0.5s linear infinite;
+      animation-delay: -3s;
+    }
+
+    @keyframes lf {
+      0% { left: 200%; }
+      100% { left: -200%; opacity: 0; }
+    }
+
+    @keyframes lf2 {
+      0% { left: 200%; }
+      100% { left: -200%; opacity: 0; }
+    }
+
+    @keyframes lf3 {
+      0% { left: 200%; }
+      100% { left: -100%; opacity: 0; }
+    }
+
+    @keyframes lf4 {
+      0% { left: 200%; }
+      100% { left: -100%; opacity: 0; }
+    }
+
+    /* Info Grid for IP, Place, etc */
+    .info-grid {
+      font-family: 'Canva Sans', sans-serif;
+      margin-top: 22px;
+      margin-bottom: 22px;
+    }
+
+    .info-row {
+      display: flex;
+      margin-bottom: 12px;
+      font-size: 18px;
+    }
+
+    .info-label {
+      color: #000000;
+      font-weight: bold;
+      margin-right: 8px;
+    }
+
+    .info-value {
+      color: #757575;
+    }
+
+    /* Link Text with Arrow */
+    .link-text {
+      font-family: 'Canva Sans', sans-serif;
+      font-size: 18px;
+      color: #000000;
+      margin-top: 22px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      position: relative;
+    }
+
+    .link-text:hover {
+      text-decoration: underline;
+    }
+
+    .arrow-icon {
+      display: inline-block;
+      width: 0;
+      height: 0;
+      border-left: 6px solid #000;
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+
+    .back-arrow-icon {
+      display: inline-block;
+      width: 0;
+      height: 0;
+      border-right: 6px solid #000;
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    .back-text-bold {
+      font-weight: bold;
+    }
+    
+
+    /* Bullet Points Styling */
+    .bullet-list {
+      font-family: 'Cooper Hewitt', sans-serif;
+      font-size: 18px;
+      color: #757575;
+      margin-top: 20px;
+      margin-bottom: 22px;
+      line-height: 1.8;
+      list-style-position: outside;
+      padding-left: 25px;
+    }
+
+    .bullet-list li {
+      margin-bottom: 10px;
+    }
+
+    .bullet-list .highlight {
+      color: #ffa100;
+      font-weight: bold;
+    }
+
+    .bullet-list .bold {
+      font-weight: bold;
+    }
+
+    .bullet-list .italic {
+      font-style: italic;
+    }
+
+    .bullet-list a {
+      color: #757575;
+      text-decoration: underline;
+    }
+
+    .bullet-list a:hover {
+      color: #ffa100;
+    }
+
+    /* Hidden State */
+    .hidden {
+      display: none !important;
+    }
+
+    /* Fade Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes slideLeft {
+      from { transform: translateX(50px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    @keyframes slideRight {
+      from { transform: translateX(-50px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    .fade-in {
+      animation: fadeIn 0.5s ease-in;
+    }
+
+    .slide-left {
+      animation: slideLeft 0.5s ease-out;
+    }
+
+    .slide-right {
+      animation: slideRight 0.5s ease-out;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1024px) {
+      .left-section {
+        padding: 50px 50px 70px 50px;
+      }
+
+      .main-heading {
+        font-size: 48px;
+      }
+
+      .sub-text {
+        font-size: 18px;
+      }
+
+      .penguin-image {
+        width: 650px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .main-container {
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      .left-section {
+        width: 100%;
+        padding: 30px 30px 100px 30px;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+      }
+
+      .content-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .main-heading {
+        text-align: center;
+      }
+
+      .sub-text {
+        text-align: center;
+      }
+
+      .right-section {
+        display: none;
+      }
+
+      .penguin-image {
+        display: none;
+      }
+
+      .navbar {
+        padding: 0 20px;
+      }
+
+      .navbar-left {
+        height: 45px;
+      }
+
+      .navbar-right img {
+        height: 32px;
+      }
+
+      .main-heading {
+        font-size: 36px;
+      }
+
+      .sub-text {
+        font-size: 16px;
+      }
+
+      .input-container {
+        width: 100%;
+      }
+
+      .info-row {
+        font-size: 16px;
+      }
+
+      .bullet-list {
+        font-size: 16px;
+      }
+    
+
+      #screen-how-works {
+        padding-top: 140px;
+      }
+
+      #screen-how-works .main-heading {
+        text-align: left;
+      }
+
+      #screen-how-works .sub-text {
+        text-align: left;
+      }
+
+      #screen-how-works .bullet-list {
+        text-align: left;
+      }
+
+      #screen-how-works .link-text {
+        text-align: left;
+      }
+
+      #screen-how-works .forget-button {
+        display: block;
+        margin-left: 0;
+      }
+
+      #screen-protect {
+        padding-top: 140px;
+      }
+
+      #screen-protect .main-heading {
+        text-align: left;
+      }
+
+      #screen-protect .sub-text {
+        text-align: left;
+      }
+
+      #screen-protect .bullet-list {
+        text-align: left;
+      }
+
+      #screen-protect .link-text {
+        text-align: left;
+      }
+
+      #screen-protect .forget-button {
+        display: block;
+        margin-left: 0;
+      }
+
+      #back-to-works {
+        margin-top: 40px !important;
+        display: block;
+        text-align: left;
+      }
     }
   </style>
 </head>
-<body class="bg-white text-gray-900 min-h-screen font-sans">
-  <div class="min-h-screen flex items-center justify-center">
-    <div class="w-full max-w-3xl px-4 py-10">
-      <!-- Logo Image -->
-      <div class="w-full flex flex-col items-center mb-0">
-        <img src="/static/LogoSpenguin.png" alt="Stalking Penguin" 
-             class="w-full max-w-xl h-32 object-contain">
+<body>
+  <!-- Loader Overlay -->
+  <div class="loader-overlay" id="loader-overlay">
+    <div class="loader">
+      <span><span></span><span></span><span></span><span></span></span>
+      <div class="base">
+        <span></span>
+        <div class="face"></div>
       </div>
-
-      <!-- Hero text (JS updates this for Thank-you / Recognized screens) -->
-      <div id="hero-text" class="text-center">
-        <h1 class="text-3xl md:text-4xl font-bold mb-4">
-          Can you hide from the <span class="font-black">Penguin</span>?
-        </h1>
-        <p class="text-base md:text-lg mb-2">
-          Think switching to your browser's <span class="font-semibold">private</span> or 
-          <span class="font-semibold">incognito</span> mode makes you invisible?
-        </p>
-        <p class="text-base md:text-lg mb-6">
-        <span class="font-semibold">Incognito mode</span> only masks your local history, not who you are — 
-        your details remain exposed through your browser and device. 
-        <span class="font-semibold">Enter your name</span> below to test how easily the web can still recognize you.
-      </p>
-      </div>
-
-      <!-- Name entry (initial screen only) -->
-      <div id="name-entry" class="text-center">
-        <div id="name-section" class="space-y-5">
-          <input id="name-input" type="text" placeholder="Your name..." 
-                 class="w-full max-w-xs mx-auto p-4 block border border-gray-300 rounded-xl text-xl text-center focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <button id="save-name" 
-                  class="w-full max-w-[200px] mx-auto block bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl text-lg font-semibold shadow">
-            Remember me!
-          </button>
-        </div>
-      </div>
-
-      <!-- Shared message/actions (visible after save/recognized) -->
-      <div class="mt-5 text-center">
-        <div id="status-box" class="hidden max-w-md mx-auto p-3 rounded-xl border text-base"></div>
-        <button id="reset-name" class="hidden w-full max-w-xs mx-auto mt-4 bg-gray-800 hover:bg-gray-900 text-white py-3 rounded-xl text-lg font-semibold shadow">
-          Forget me!
-        </button>
-      </div>
-
-      <!-- Recognized screen (incognito/returning) -->
-      <div id="info-panel" class="hidden mt-8">
-        <div id="tracking-info"></div>
-        <div id="risk-score" class="mt-4"></div>
-        <div id="mitigations" class="mt-6"></div>
-      </div>
-
-      <!-- Debug -->
-      <div id="status" class="mt-6 text-center text-xs text-gray-500"></div>
-
-      <!-- Footer -->
-      <div class="mt-10 text-center text-xs text-gray-500 space-y-1">
-        <p>Inspired by <span class="font-semibold">nothingprivate.gkr.pw</span></p>
-        <p>Created by <span class="font-semibold">Aditya Pratap Singh</span></p>
-      </div>
+    </div>
+    <div class="longfazers">
+      <span></span><span></span><span></span><span></span>
     </div>
   </div>
 
-  <!-- Floating Penguin (bottom-right corner) -->
-  <div class="fixed bottom-6 right-6 w-20 h-20 z-50 pointer-events-none">
-    <img src="/static/SPenguin.png" alt="Penguin" 
-         class="w-full h-full object-contain animate-bob drop-shadow-lg">
+  <!-- Navbar -->
+  <div class="navbar">
+    <div class="navbar-left">
+      <img src="/static/Logoleft.webp" alt="Stalking Penguin Logo">
+    </div>
+    <div class="navbar-right">
+      <img src="/static/Logoright.webp" alt="Penguin Icon">
+      <a href="https://github.com/aditya-inorder/stalking-penguin" target="_blank">
+        <img src="/static/github.webp" alt="GitHub">
+      </a>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <div class="main-container">
+    <!-- Left Section (55%) -->
+    <div class="left-section" id="left-section">
+      <div class="content-wrapper" id="content-wrapper">
+        <!-- Initial Screen -->
+        <div id="screen-initial">
+          <h1 class="main-heading">
+            Can you hide from the <span class="bold-penguin">Penguin</span>?
+          </h1>
+
+          <p class="sub-text">
+            Think switching to your browser's private or incognito mode makes you invisible? Find out, enter your name below.
+          </p>
+
+          <div class="input-container">
+            <input type="text" id="name-input" required="">
+            <label for="name-input" class="label">Your name...</label>
+            <div class="underline"></div>
+          </div>
+
+          <button class="remember-button" id="save-name">
+            <span class="button_top">Remember me!</span>
+          </button>
+
+          <div class="status-box" id="status-box"></div>
+        </div>
+
+        <!-- Thank You Screen -->
+        <div id="screen-thankyou" class="hidden">
+          <h1 class="main-heading">
+            Thank you, <span class="blue-name" id="thankyou-name">User</span>!
+          </h1>
+
+          <p class="sub-text">
+            The penguin has remembered you, so <span class="bold-part">try to hide in a Private/Incognito window and visit the site again</span> to see if it still finds you.
+          </p>
+
+          <button class="forget-button" id="forget-btn-thankyou">FORGET ME!</button>
+        </div>
+
+        <!-- Recognized Screen (Incognito) -->
+        <div id="screen-recognized" class="hidden">
+          <h1 class="main-heading" id="recognized-heading">
+            Welcome back, <span class="orange-name" id="recognized-name">User</span>!
+          </h1>
+
+          <p class="sub-text">
+            Private mode didn't stop identification based on device traits, here is what was captured instantly.
+          </p>
+
+          <div class="info-grid" id="info-grid">
+            <div class="info-row">
+              <span class="info-label">IP :</span>
+              <span class="info-value" id="info-ip">Loading...</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Place :</span>
+              <span class="info-value" id="info-place">Loading...</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">ISP/ORG :</span>
+              <span class="info-value" id="info-isp">Loading...</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Platform :</span>
+              <span class="info-value" id="info-platform">Loading...</span>
+            </div>
+          </div>
+
+          <div class="link-text" id="how-works-link">
+            Do you want to know how Penguin did it—and more importantly, how you can stop it?
+            <span class="arrow-icon"></span>
+          </div>
+
+          <button class="forget-button" id="forget-btn-recognized">FORGET ME!</button>
+        </div>
+
+        <!-- How This Works Screen -->
+        <div id="screen-how-works" class="hidden">
+          <h1 class="main-heading" style="margin-top: 20px;">How does this work?</h1>
+
+          <p class="sub-text">
+            Websites use <span class="bold-part">browser fingerprinting</span> to identify you. Instead of relying on cookies alone, they collect a <span class="bold-part">unique set of traits</span> from your device and browser, such as:
+          </p>
+
+          <ul class="bullet-list">
+            <li><span class="bold">User agent</span> & <span class="highlight">screen resolution</span></li>
+            <li><span class="bold">Color depth</span> & <span class="italic">available resolution</span></li>
+            <li><span class="highlight">Installed plugins</span> & available fonts</li>
+            <li><span class="bold">Timezone</span>, <span class="italic">language</span>, & system language</li>
+            <li><span class="highlight">Canvas fingerprint</span> & local/session storage</li>
+            <li><span class="bold">Device DPI</span> (XDPI/YDPI) & cookies</li>
+          </ul>
+
+          <div class="link-text" id="protect-link">
+            How can you protect yourself from online tracking threats effectively?
+            <span class="arrow-icon"></span>
+          </div>
+
+          <button class="forget-button" id="forget-btn-how-works">FORGET ME!</button>
+        </div>
+
+        <!-- How to Protect Screen -->
+        <div id="screen-protect" class="hidden">
+          <div class="link-text" id="back-to-works" style="margin-top: 0; margin-bottom: 25px;">
+            <span class="back-arrow-icon"></span>
+            <span class="back-text-bold">How does this work?</span>
+          </div>
+
+          <h1 class="main-heading">How to protect yourself?</h1>
+
+          <p class="sub-text">
+            Fingerprinting is <span class="bold-part">hard to block completely</span>, but you can reduce how much data is exposed. Stronger defenses include:
+          </p>
+
+          <ul class="bullet-list">
+            <li><span class="bold">Use a VPN</span> → hides your IP address and location.</li>
+            <li><span class="bold">Block trackers</span> → tools like <span class="highlight">uBlock Origin</span> stop many tracking scripts.</li>
+            <li><span class="bold">Choose privacy-focused browsers</span> → some (like <span class="highlight">Tor</span> or <span class="highlight">Brave</span>) include anti-fingerprinting protections.</li>
+            <li><span class="bold">Test your fingerprint</span> → sites like <a href="https://panopticlick.eff.org" target="_blank">EFF Panopticlick</a> or <a href="https://amiunique.org" target="_blank">Am I Unique?</a> show how identifiable your setup is.</li>
+          </ul>
+
+          <button class="forget-button" id="forget-btn-protect">FORGET ME!</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Section (45%) with Gradient Background -->
+    <div class="right-section"></div>
+
+    <!-- Penguin Image - Overlapping both sections -->
+    <img src="/static/Main.webp" alt="Stalking Penguin" class="penguin-image">
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p class="footer-text">
+      © Created by <span class="creator-name">Aditya Pratap Singh</span>
+    </p>
   </div>
 
   <script src="/static/script.js"></script>

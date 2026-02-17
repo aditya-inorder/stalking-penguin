@@ -6,12 +6,12 @@ import sqlite3
 import hashlib
 import time
 import requests
+import json
 
 app = FastAPI(title="Stalking Penguin")
 
 templates = Jinja2Templates(directory="../frontend")
 app.mount("/static", StaticFiles(directory="../frontend/static"), name="static")
-
 
 DB_PATH = Path(__file__).resolve().parent / "names.db"
 
@@ -44,38 +44,89 @@ async def index(request: Request):
 async def fingerprint(request: Request):
     client_ip = request.client.host
 
-    # If testing locally, ipapi on 127.0.0.1 will be useless.
-    # Use ipapi's "auto IP" endpoint to show meaningful public IP/ISP/location.
-    lookup_url = (
-        "https://ipapi.co/json/"
-        if client_ip in ("127.0.0.1", "::1")
-        else f"https://ipapi.co/{client_ip}/json/"
-    )
+    # Get real IP from headers if behind proxy
+    forwarded_for = request.headers.get("x-forwarded-for")
+    real_ip = request.headers.get("x-real-ip")
 
+    if forwarded_for:
+        client_ip = forwarded_for.split(",")[0].strip()
+    elif real_ip:
+        client_ip = real_ip
+
+    # Determine if using local IP fallback
+    is_local = client_ip in ("127.0.0.1", "::1", "localhost")
+
+    # Try multiple geo IP services for reliability
     geo = {}
+
+    # Try ipapi.co first
     try:
-        geo_response = requests.get(lookup_url, timeout=5)
-        geo = geo_response.json() if geo_response.ok else {}
-    except Exception:
-        geo = {}
+        lookup_url = "https://ipapi.co/json/" if is_local else f"https://ipapi.co/{client_ip}/json/"
 
-    ip_out = geo.get("ip", client_ip) if client_ip in ("127.0.0.1", "::1") else client_ip
-    city = geo.get("city") or "Unknown"
-    country = geo.get("country_name") or "Unknown"
-    org = geo.get("org") or "Unknown"
+        geo_response = requests.get(lookup_url, timeout=6)
+        if geo_response.ok:
+            geo_data = geo_response.json()
 
-    location = "Unknown"
-    if city != "Unknown" or country != "Unknown":
-        location = ", ".join([x for x in [city, country] if x and x != "Unknown"]) or "Unknown"
+            # Check for error in response
+            if "error" not in geo_data and geo_data.get("ip"):
+                geo = geo_data
+    except Exception as e:
+        pass
 
-    return {
+    # Fallback to ip-api.com if ipapi.co failed
+    if not geo or geo.get("ip") == "127.0.0.1":
+        try:
+            fallback_url = "http://ip-api.com/json/" if is_local else f"http://ip-api.com/json/{client_ip}"
+
+            fallback_response = requests.get(fallback_url, timeout=6)
+            if fallback_response.ok:
+                fallback_data = fallback_response.json()
+
+                if fallback_data.get("status") == "success":
+                    # Map ip-api.com format to ipapi.co format
+                    geo = {
+                        "ip": fallback_data.get("query", client_ip),
+                        "city": fallback_data.get("city"),
+                        "country_name": fallback_data.get("country"),
+                        "org": fallback_data.get("isp")
+                    }
+        except Exception as e:
+            pass
+
+    # Extract data with better fallbacks
+    ip_out = client_ip
+    if geo.get("ip") and geo["ip"] != "127.0.0.1":
+        ip_out = geo["ip"]
+
+    city = geo.get("city") or ""
+    country = geo.get("country_name") or ""
+    org = geo.get("org") or geo.get("isp") or ""
+
+    # Build location string
+    location_parts = []
+    if city:
+        location_parts.append(city)
+    if country:
+        location_parts.append(country)
+
+    location = ", ".join(location_parts) if location_parts else "Unknown"
+
+    # ISP handling
+    isp = org if org else "Unknown"
+
+    # Platform detection
+    platform = request.headers.get("sec-ch-ua-platform", "").strip('"') or "Unknown"
+
+    result = {
         "ip": ip_out,
         "location": location,
-        "city": city,
-        "country": country,
-        "isp": org,
-        "platform": request.headers.get("sec-ch-ua-platform", "") or "",
+        "city": city or "Unknown",
+        "country": country or "Unknown",
+        "isp": isp,
+        "platform": platform,
     }
+
+    return result
 
 
 @app.post("/api/store_name")
@@ -94,6 +145,7 @@ async def store_name(
     )
     conn.commit()
     conn.close()
+
     return {"status": "stored"}
 
 
@@ -112,6 +164,7 @@ async def delete_name(
     )
     conn.commit()
     conn.close()
+
     return {"status": "deleted"}
 
 
@@ -131,4 +184,8 @@ async def lookup(strong_fp: str, soft_fp: str):
     cur = conn.execute("SELECT name FROM names WHERE soft_fp = ?", (soft_hash,))
     row = cur.fetchone()
     conn.close()
-    return {"name": row[0] if row else None, "match": "soft" if row else None}
+
+    if row:
+        return {"name": row[0], "match": "soft"}
+    else:
+        return {"name": None, "match": None}
