@@ -1,4 +1,4 @@
-﻿![Banner](frontend/static/Images/Stakingpenguin.webp)
+﻿![Banner](frontend/static/Images/Stalkingpenguin.webp)
 
 **Stalking Penguin** is an interactive web application that demonstrates the effectiveness of browser fingerprinting as an identification technique. It proves that switching to private/incognito mode isn't enough to hide from tracking - your device's unique characteristics can still reveal your identity.
 
@@ -71,5 +71,6 @@ MIT License - Feel free to use this for educational purposes.
 ## Author
 
 Created by Aditya Pratap Singh
+
 
 
